@@ -27,17 +27,8 @@ std::vector<std::string> getFilesRecursive(const std::string &folderPath) {
     return filePaths;
 }
 
-void getLogCounts(const std::string &logFilePath) {
-    std::ifstream logFile(logFilePath);
-    if (!logFile.is_open()) {
-        std::cerr << "Failed to open log file: " << logFilePath << std::endl;
-        return;
-    }
-
-    std::map<std::string, std::map<std::string, size_t>> fileLogCounts;
-
-    std::string line;
-    while (std::getline(logFile, line)) {
+std::tuple<std::string, std::string, std::string> splitLine(std::string &line) {
+    try {
         size_t timestampStart = line.find('[') + 1;
         size_t timestampEnd = line.find(']', timestampStart);
         std::string timestamp = line.substr(timestampStart, timestampEnd - timestampStart);
@@ -52,6 +43,24 @@ void getLogCounts(const std::string &logFilePath) {
 
         std::string message = line.substr(nameEnd + 2);
 
+        return {timestamp, level, name};
+    } catch (...) {
+        return {"", "", ""};
+    }
+}
+
+void getLogCounts(const std::string &logFilePath) {
+    std::ifstream logFile(logFilePath);
+    if (!logFile.is_open()) {
+        std::cerr << "Failed to open log file: " << logFilePath << std::endl;
+        return;
+    }
+
+    std::map<std::string, std::map<std::string, size_t>> fileLogCounts;
+
+    std::string line;
+    while (std::getline(logFile, line)) {
+        auto [timestamp, level, name] = splitLine(line);
         fileLogCounts[name][level]++;
     }
 
@@ -78,7 +87,9 @@ int main() {
     std::vector<std::thread> threads;
 
     for (const auto &file_path: files) {
-        if(!file_path.ends_with(".log"))continue;
+        if (!file_path.ends_with(".log")) {
+            continue;
+        }
         threads.emplace_back(getLogCounts, file_path);
     }
 
@@ -101,6 +112,7 @@ int main() {
     std::cout << std::endl;
     std::cout << "Process\tTrace\tDebug\tInfo\tWarn\tError" << std::endl;
     for (auto &[count, prog_name]: progOrder) {
+        if (prog_name.empty())continue;
         std::cout << prog_name << "\t";
         std::cout << logCounts[prog_name]["Trace"] << "\t";
         std::cout << logCounts[prog_name]["Debug"] << "\t";
