@@ -78,6 +78,7 @@ int main() {
     std::vector<std::thread> threads;
 
     for (const auto &file_path: files) {
+        if(!file_path.ends_with(".log"))continue;
         threads.emplace_back(getLogCounts, file_path);
     }
 
